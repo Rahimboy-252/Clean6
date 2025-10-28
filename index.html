@@ -11,42 +11,120 @@
 <body>
     <div class="container">
         <div class="input-box">
-            <input type="password" id="password" placeholder="Password">
-            <button type="submit"><img src="img/arrow.png"></button>
-            <p id="message">Password is <span id="strenght"></span></p>
+            <input type="password" id="password" placeholder="Enter a password">
+            <button type="button" id="toggle-visibility" aria-label="Show password"><img src="img/arrow.png" alt="toggle"></button>
+
+            <div class="strength-wrap">
+                <div class="strength-meter" aria-hidden="true">
+                    <div id="strength-bar" class="strength-bar" style="width:0%"></div>
+                </div>
+                <p id="message" aria-live="polite">Password strength: <span id="strength">—</span></p>
+                <ul id="suggestions" class="suggestions" aria-live="polite"></ul>
+            </div>
         </div>
     </div>
 
     <script>
+        // Elements
+        const pass = document.getElementById('password');
+        const msg = document.getElementById('message');
+        const strengthText = document.getElementById('strength');
+        const strengthBar = document.getElementById('strength-bar');
+        const toggleBtn = document.getElementById('toggle-visibility');
+        const suggestions = document.getElementById('suggestions');
 
-        var pass = document.getElementById("password")
-        var msg = document.getElementById("message")
-        var str = document.getElementById("strenght")
+        // Evaluate password and return score 0..6
+        function evaluatePassword(pw) {
+            let score = 0;
+            if (!pw) return 0;
+            if (pw.length >= 8) score += 1;        // minimum recommended
+            if (pw.length >= 12) score += 1;       // extra length
+            if (/[a-z]/.test(pw)) score += 1;      // lowercase
+            if (/[A-Z]/.test(pw)) score += 1;      // uppercase
+            if (/[0-9]/.test(pw)) score += 1;      // digit
+            if (/[^A-Za-z0-9]/.test(pw)) score += 1; // special char
+            return score;
+        }
+
+        function getLabel(score) {
+            if (score <= 1) return 'Very weak';
+            if (score === 2) return 'Weak';
+            if (score === 3) return 'Medium';
+            if (score === 4) return 'Strong';
+            if (score >= 5) return 'Very strong';
+            return '—';
+        }
+
+        function getColor(score) {
+            if (score <= 1) return '#ff4d4f'; // red
+            if (score === 2) return '#ff7a45'; // orange
+            if (score === 3) return '#ffd666'; // yellow
+            if (score === 4) return '#73d13d'; // green
+            if (score >= 5) return '#389e0d'; // dark green
+            return '#888';
+        }
+
+        function updateSuggestions(pw) {
+            const missing = [];
+            if (pw.length < 8) missing.push('Make it at least 8 characters long');
+            if (!/[A-Z]/.test(pw)) missing.push('Add an uppercase letter');
+            if (!/[a-z]/.test(pw)) missing.push('Add a lowercase letter');
+            if (!/[0-9]/.test(pw)) missing.push('Add a number');
+            if (!/[^A-Za-z0-9]/.test(pw)) missing.push('Add a special character (e.g. !@#$%)');
+
+            suggestions.innerHTML = '';
+            if (missing.length === 0 && pw.length > 0) {
+                const li = document.createElement('li');
+                li.textContent = 'Good job — your password looks strong.';
+                suggestions.appendChild(li);
+            } else {
+                missing.forEach(m => {
+                    const li = document.createElement('li');
+                    li.textContent = m;
+                    suggestions.appendChild(li);
+                });
+            }
+        }
 
         pass.addEventListener('input', () => {
-            if (pass=value.lenght > 0) {
-                msg.style.display = "block"
-            }
-            else {
-                msg.style.display = "none"
-            }
-            if (pass.value.lenght < 4) {
-                str.innerHTML = "weak"
-                pass.style.borderColor = "#ff5925"
-                msg.style.color = "#ff9525"
-            }
-            else if (pass.value.lenght >= 4 && pass.value.lenght < 8) {
-                str.innerHTML = "medium";
-                pass.style.borderColor = "yellow"
-                msg.style.color = "#ff9525"
-            }
-            else if (pass.value.lenght >= 8) {
-                str.innerHTML = "strong";
-                pass.style.borderColor = "#26d730"
-                msg.style.color = "#ff9525"
+            const pw = pass.value;
+            if (!pw) {
+                msg.style.display = 'none';
+                strengthBar.style.width = '0%';
+                strengthText.textContent = '—';
+                suggestions.innerHTML = '';
+                pass.style.borderColor = '#ccc';
+                return;
             }
 
-        })
+            msg.style.display = 'block';
+            const score = evaluatePassword(pw); // 0..6
+            const percent = Math.round((score / 6) * 100);
+            const label = getLabel(score);
+            const color = getColor(score);
+
+            strengthBar.style.width = percent + '%';
+            strengthBar.style.background = color;
+            strengthBar.style.boxShadow = `0 0 8px ${color}`;
+
+            strengthText.textContent = label;
+            msg.style.color = color;
+            pass.style.borderColor = color;
+
+            updateSuggestions(pw);
+        });
+
+        // Toggle visibility (simple UX helper)
+        toggleBtn.addEventListener('click', () => {
+            if (pass.type === 'password') {
+                pass.type = 'text';
+                toggleBtn.title = 'Hide password';
+            } else {
+                pass.type = 'password';
+                toggleBtn.title = 'Show password';
+            }
+            pass.focus();
+        });
     </script>
 
 </body>
